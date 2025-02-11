@@ -1,0 +1,3 @@
+ultralytics
+# google-cloud-storage # ローカルテスト時はコメントアウト
+PyYAML
