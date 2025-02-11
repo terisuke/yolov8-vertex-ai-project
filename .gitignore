@@ -50,6 +50,8 @@ Thumbs.db
 # ログファイル
 *.log
 
+# キャッシュ
+*.cache
 # その他
 *.yaml
 !data.yaml
