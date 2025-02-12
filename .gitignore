@@ -52,6 +52,8 @@ Thumbs.db
 
 # キャッシュ
 *.cache
+**/*.cache
+
 # その他
 *.yaml
 !data.yaml
