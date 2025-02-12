@@ -3,108 +3,69 @@ import os
 import yaml
 
 from ultralytics import YOLO
-#from google.cloud import storage  # ローカルテスト時はコメントアウト
 
-# Cloud Storage バケット名 (バケット名は適宜変更してください)
-# BUCKET_NAME = "yolo-v8-training"  # ローカルテスト時はコメントアウト
-
-# データセットのパス (Cloud Storage上のパス)
-# DATASET_PATH = "datasets/your-dataset.yaml"  # ローカルテスト時はコメントアウト
-# ローカルデータセットのパス（ローカルテスト時用）
 LOCAL_DATASET_PATH = "./data.yaml"
 
 def download_dataset(bucket_name, dataset_path):
-    """Cloud Storageからデータセットをダウンロードする関数"""
-    # client = storage.Client()
-    # bucket = client.bucket(bucket_name)
-
-    # # データセットのyamlファイル (例: data.yaml) をダウンロード
-    # blob = bucket.blob(dataset_path)
-    # blob.download_to_filename(os.path.basename(dataset_path))
-
-    # # データセットの画像とラベルをダウンロード (ディレクトリ構造を維持)
-    # # data.yamlからtrainとvalのパスを取得
-    # with open(os.path.basename(dataset_path), 'r') as f:
-    #     data_yaml = yaml.safe_load(f)
-    #     train_path = data_yaml['train']
-    #     val_path = data_yaml['val']
-    
-    # # train data
-    # blobs = bucket.list_blobs(prefix= train_path)  # Get list of all blobs
-    # for blob in blobs:
-    #     if blob.name.endswith((".jpg", ".jpeg", ".png")):
-    #         destination_file_name = blob.name.replace(train_path,"data/images/train")
-    #         os.makedirs(os.path.dirname(destination_file_name),exist_ok=True) # ディレクトリがない場合は作成
-    #         blob.download_to_filename(destination_file_name)
-            
-    # blobs = bucket.list_blobs(prefix= train_path.replace("images","labels"))  # Get list of all blobs
-    # for blob in blobs:
-    #     if blob.name.endswith((".txt")):
-    #         destination_file_name = blob.name.replace(train_path,"data/labels/train")
-    #         os.makedirs(os.path.dirname(destination_file_name),exist_ok=True) # ディレクトリがない場合は作成
-    #         blob.download_to_filename(destination_file_name)
-    # # val data
-    # blobs = bucket.list_blobs(prefix= val_path)  # Get list of all blobs
-    # for blob in blobs:
-    #     if blob.name.endswith((".jpg", ".jpeg", ".png")):
-    #         destination_file_name = blob.name.replace(val_path,"data/images/val")
-    #         os.makedirs(os.path.dirname(destination_file_name),exist_ok=True) # ディレクトリがない場合は作成
-    #         blob.download_to_filename(destination_file_name)
-            
-    # blobs = bucket.list_blobs(prefix= val_path.replace("images","labels"))  # Get list of all blobs
-    # for blob in blobs:
-    #     if blob.name.endswith((".txt")):
-    #         destination_file_name = blob.name.replace(val_path,"data/labels/val")
-    #         os.makedirs(os.path.dirname(destination_file_name),exist_ok=True) # ディレクトリがない場合は作成
-    #         blob.download_to_filename(destination_file_name)
     pass
 
-
 def upload_model(bucket_name, model_path, destination_blob_name):
-    """学習済みモデルをCloud Storageにアップロードする関数"""
-    # client = storage.Client()
-    # bucket = client.bucket(bucket_name)
-    # blob = bucket.blob(destination_blob_name)
-    # blob.upload_from_filename(model_path)
-    pass # ローカルでのテスト時は何もしない
+    pass
 
 def train_yolov8(args):
-    """YOLOv8のトレーニングを実行する関数"""
-
-    # データセットをダウンロード
-    # download_dataset(BUCKET_NAME, DATASET_PATH) # ローカルテスト時はコメントアウト
-
-    # YOLOモデルを初期化
-    model = YOLO(args.model)  # 例: YOLO("yolov8n.pt")
+    """YOLOv8のセグメンテーションモデルのトレーニングを実行する関数"""
+    
+    # セグメンテーションモデルを初期化
+    if not args.model.endswith('-seg.pt'):
+        base_name = args.model.replace('.pt', '')
+        args.model = f"{base_name}-seg.pt"
+    
+    model = YOLO(args.model)
 
     # トレーニングを実行
     results = model.train(
-        # data=os.path.basename(DATASET_PATH),  # ローカルテスト時はコメントアウト
-        data=LOCAL_DATASET_PATH, # ローカルのデータセットパス
+        data=LOCAL_DATASET_PATH,
         epochs=args.epochs,
         batch=args.batch_size,
         imgsz=args.imgsz,
-        optimizer = args.optimizer,
-        val=False,  # 検証データの読み込みを無効化
-         # その他のハイパーパラメータ...
+        optimizer=args.optimizer,
+        val=True,  # セグメンテーションの評価を有効化
+        iou=args.iou_threshold,  # IoUのしきい値
+        conf=args.conf_threshold,  # 信頼度のしきい値
+        single_cls=args.single_cls,  # 単一クラスモード
+        rect=args.rect,  # 矩形トレーニング
+        cos_lr=args.cos_lr,  # コサイン学習率スケジューラー
+        mosaic=args.mosaic,  # モザイクデータ拡張
+        degrees=args.degrees,  # 回転のデータ拡張
+        scale=args.scale,  # スケーリングのデータ拡張
     )
 
-    # 学習済みモデルをCloud Storageにアップロード
+    # 学習済みモデルを保存
     best_model_path = os.path.join(results.save_dir, "weights", "best.pt")
-    # upload_model(BUCKET_NAME, best_model_path, f"models/{args.model}/best.pt") # ローカルテスト時はコメントアウト
     print(f"ローカルでのテストのため、モデルは{best_model_path}に保存されました")
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train YOLOv8 on Vertex AI")
+    parser = argparse.ArgumentParser(description="Train YOLOv8-seg on Vertex AI")
 
-    # コマンドライン引数を定義
-    parser.add_argument("--model", type=str, default="yolov8n.pt", help="Model to train (e.g., yolov8n.pt, yolov8s.pt)")
+    # 基本的なパラメータ
+    parser.add_argument("--model", type=str, default="yolov8n-seg.pt", help="Segmentation model to train (e.g., yolov8n-seg.pt)")
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
     parser.add_argument("--imgsz", type=int, default=640, help="Image size")
-    parser.add_argument("--optimizer",type=str, default="Adam",help="optimizer")
-    # その他の引数を追加...
+    parser.add_argument("--optimizer", type=str, default="Adam", help="Optimizer")
+    parser.add_argument("--lr0", type=float, default=0.01, help="Initial learning rate")
+    
+    # セグメンテーション特有のパラメータ
+    parser.add_argument("--iou_threshold", type=float, default=0.7, help="IoU threshold for NMS")
+    parser.add_argument("--conf_threshold", type=float, default=0.25, help="Confidence threshold")
+    parser.add_argument("--single_cls", action="store_true", help="Train as single-class dataset")
+    
+    # データ拡張パラメータ
+    parser.add_argument("--rect", action="store_true", help="Rectangular training")
+    parser.add_argument("--cos_lr", action="store_true", help="Use cosine learning rate scheduler")
+    parser.add_argument("--mosaic", type=float, default=1.0, help="Mosaic augmentation")
+    parser.add_argument("--degrees", type=float, default=0.0, help="Image rotation (+/- deg)")
+    parser.add_argument("--scale", type=float, default=0.5, help="Image scale (+/- gain)")
 
     args = parser.parse_args()
 
