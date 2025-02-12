@@ -58,3 +58,6 @@ Thumbs.db
 *.yaml
 !data.yaml
 !requirements.yaml
+
+# サービスアカウントキー
+service-account-key.json
