@@ -47,11 +47,11 @@ COPY utils /app/utils
 # サービスアカウントキーをコピー (Vertex AI でサービスアカウントを使う場合)
 # サービスアカウントキーを安全に扱うように注意してください。
 # 可能であれば、Workload Identity 連携の使用を検討してください。
-COPY <your-service-account-key.json> /app/
+COPY service-account-key.json /app/
 
 # 環境変数を設定
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json
-ENV APP_ROOT /app
+ENV APP_ROOT=/app
 
 # エントリーポイントを設定 (Vertex AI Custom Training で実行するコマンド)
 ENTRYPOINT ["python3", "/app/app.py"]

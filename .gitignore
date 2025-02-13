@@ -58,6 +58,7 @@ Thumbs.db
 *.yaml
 !data.yaml
 !requirements.yaml
+move_and_split.sh
 
 # サービスアカウントキー
 service-account-key.json
