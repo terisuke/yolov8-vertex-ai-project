@@ -26,12 +26,6 @@ wheels/
 runs/
 *.pt
 
-# データセットの実ファイル
-datasets/**/*.jpg
-datasets/**/*.jpeg
-datasets/**/*.png
-datasets/**/*.txt
-
 # 環境設定
 .env
 .venv
@@ -53,7 +47,7 @@ Thumbs.db
 
 # キャッシュ
 *.cache
-**/*.cache
+#**/*.cache #labels.cacheがキャッシュされるのを防ぐため、ワイルドカードでの指定から変更
 
 # その他
 *.yaml
