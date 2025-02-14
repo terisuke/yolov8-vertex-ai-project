@@ -8,25 +8,24 @@ from google.cloud import storage  # 追加
 
 LOCAL_DATASET_PATH = "./data.yaml"
 
+# def download_dataset(bucket_name, dataset_path):
+#     """Cloud Storage からローカルにデータセットをダウンロード (Vertex AI では不要)"""
+#     storage_client = storage.Client()
+#     bucket = storage_client.bucket(bucket_name)
 
-def download_dataset(bucket_name, dataset_path):
-    """Cloud Storage からローカルにデータセットをダウンロード (Vertex AI では不要)"""
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
+#     blobs = bucket.list_blobs(prefix=dataset_path)  # データセット全体のオブジェクトを取得
 
-    blobs = bucket.list_blobs(prefix=dataset_path)  # データセット全体のオブジェクトを取得
+#     for blob in blobs:
+#         # ローカルでのパスを構築 (Cloud Storage上のパスから、バケット名とデータセットパスを取り除く)
+#         local_path = blob.name.replace(dataset_path, "").lstrip("/")
+#         local_file_path = os.path.join("./", local_path)  # ローカルのカレントディレクトリに保存
 
-    for blob in blobs:
-        # ローカルでのパスを構築 (Cloud Storage上のパスから、バケット名とデータセットパスを取り除く)
-        local_path = blob.name.replace(dataset_path, "").lstrip("/")
-        local_file_path = os.path.join("./", local_path)  # ローカルのカレントディレクトリに保存
+#         # ディレクトリが存在しない場合は作成
+#         os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
-        # ディレクトリが存在しない場合は作成
-        os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-
-        # ファイルをダウンロード
-        blob.download_to_filename(local_file_path)
-        print(f"Downloaded {blob.name} to {local_file_path}")
+#         # ファイルをダウンロード
+#         blob.download_to_filename(local_file_path)
+#         print(f"Downloaded {blob.name} to {local_file_path}")
 
 
 def upload_model(bucket_name, model_path, destination_blob_name):

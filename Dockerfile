@@ -16,6 +16,8 @@
 # 例: FROM python:3.9-slim-buster
 
 # GPU を使用する場合 (例)
+# 可能であれば runtime イメージを試す (ただし、ビルドに失敗する可能性あり)
+# FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu20.04
 FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
 
 # CPU のみを使用する場合 (例)
@@ -29,16 +31,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   python3 \
   python3-pip \
   git \
+  libgl1-mesa-dev \
   && rm -rf /var/lib/apt/lists/*
 
-# Ultralytics YOLOv8をインストール
-RUN pip3 install ultralytics
+# requirements.txt をコピー (先にコピーすることで、変更がない限りキャッシュが効く)
+COPY requirements.txt /app/
 
-# Google Cloud Storage クライアントライブラリをインストール
-RUN pip3 install google-cloud-storage
-
-# その他の必要なライブラリをインストール
-RUN pip3 install pyyaml
+# 依存関係のインストール (requirements.txt を使用)
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # app.py と utils ディレクトリをコピー
 COPY app.py /app/
