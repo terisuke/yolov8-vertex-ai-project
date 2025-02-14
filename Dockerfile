@@ -1,4 +1,3 @@
-# 修正後の Dockerfile (Dockerfile)
 # マルチアーキテクチャビルドに対応するため、buildxを使用することを前提とします。
 # buildx がインストールされていない場合は、`docker buildx install` でインストールしてください。
 
@@ -41,7 +40,7 @@ COPY requirements.txt /app/
 
 # 依存関係のインストール (requirements.txt を使用)
 # RUN pip3 install --no-cache-dir -r requirements.txt　修正前
-RUN pip3 install --no-cache-dir -r requirements.txt --upgrade  # ultralytics の更新に対応
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # app.py と utils ディレクトリをコピー
 COPY app.py /app/
