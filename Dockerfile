@@ -35,17 +35,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
-# requirements.txt をコピー (先にコピーすることで、変更がない限りキャッシュが効く)
+# app.py と utils ディレクトリをコピー
+COPY app.py /app/
+COPY utils /app/utils
+COPY data.yaml /app/
 COPY requirements.txt /app/
+
 
 # 依存関係のインストール (requirements.txt を使用)
 # RUN pip3 install --no-cache-dir -r requirements.txt　修正前
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# app.py と utils ディレクトリをコピー
-COPY app.py /app/
-COPY utils /app/utils
-COPY data.yaml /app/
 
 
 # サービスアカウントキーをコピー (Vertex AI でサービスアカウントを使う場合)

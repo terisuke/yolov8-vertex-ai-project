@@ -1,8 +1,4 @@
 .git
 runs/
-datasets/**/*.jpg
-datasets/**/*.jpeg
-datasets/**/*.png
-datasets/**/*.txt
 *.cache
 **/__pycache__
