@@ -2,6 +2,10 @@
 train: gs://yolo-v8-training/house/train/
 val: gs://yolo-v8-training/house/val/
 
+# ローカルでのディレクトリパス
+# train: datasets/house/train/
+# val: datasets/house/val/
+
 # number of classes
 nc: 4
 

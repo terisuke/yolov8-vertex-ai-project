@@ -1,3 +1,4 @@
+# 修正後の Dockerfile (Dockerfile)
 # マルチアーキテクチャビルドに対応するため、buildxを使用することを前提とします。
 # buildx がインストールされていない場合は、`docker buildx install` でインストールしてください。
 
@@ -32,17 +33,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   python3-pip \
   git \
   libgl1-mesa-dev \
+  libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
 # requirements.txt をコピー (先にコピーすることで、変更がない限りキャッシュが効く)
 COPY requirements.txt /app/
 
 # 依存関係のインストール (requirements.txt を使用)
-RUN pip3 install --no-cache-dir -r requirements.txt
+# RUN pip3 install --no-cache-dir -r requirements.txt　修正前
+RUN pip3 install --no-cache-dir -r requirements.txt --upgrade  # ultralytics の更新に対応
 
 # app.py と utils ディレクトリをコピー
 COPY app.py /app/
 COPY utils /app/utils
+COPY data.yaml /app/
+
 
 # サービスアカウントキーをコピー (Vertex AI でサービスアカウントを使う場合)
 # サービスアカウントキーを安全に扱うように注意してください。

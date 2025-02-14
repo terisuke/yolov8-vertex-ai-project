@@ -3,29 +3,22 @@ import os
 import yaml
 
 from ultralytics import YOLO
-from google.cloud import storage  # 追加
+from google.cloud import storage
+
+# ローカル実行と Vertex AI 実行を区別するための環境変数
+IS_VERTEX_AI = os.getenv("AIP_TRAINING_TASK_TYPE") is not None
+
+# Vertex AI 環境でのデータセットのパス (Cloud Storage 上のパス)
+VERTEX_AI_DATASET_PATH = "data.yaml"  # data.yaml は GCS にアップロードされている想定
 
 
-LOCAL_DATASET_PATH = "./data.yaml"
-
-# def download_dataset(bucket_name, dataset_path):
-#     """Cloud Storage からローカルにデータセットをダウンロード (Vertex AI では不要)"""
-#     storage_client = storage.Client()
-#     bucket = storage_client.bucket(bucket_name)
-
-#     blobs = bucket.list_blobs(prefix=dataset_path)  # データセット全体のオブジェクトを取得
-
-#     for blob in blobs:
-#         # ローカルでのパスを構築 (Cloud Storage上のパスから、バケット名とデータセットパスを取り除く)
-#         local_path = blob.name.replace(dataset_path, "").lstrip("/")
-#         local_file_path = os.path.join("./", local_path)  # ローカルのカレントディレクトリに保存
-
-#         # ディレクトリが存在しない場合は作成
-#         os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-
-#         # ファイルをダウンロード
-#         blob.download_to_filename(local_file_path)
-#         print(f"Downloaded {blob.name} to {local_file_path}")
+def download_blob(bucket_name, source_blob_name, destination_file_name):
+    """Downloads a blob from the bucket."""
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    blob.download_to_filename(destination_file_name)
+    print(f"Blob {source_blob_name} downloaded to {destination_file_name}.")
 
 
 def upload_model(bucket_name, model_path, destination_blob_name):
@@ -43,6 +36,14 @@ def upload_model(bucket_name, model_path, destination_blob_name):
 def train_yolov8(args):
     """YOLOv8のセグメンテーションモデルのトレーニングを実行する関数"""
 
+    # Vertex AI 環境では data.yaml を GCS からダウンロード
+    if IS_VERTEX_AI:
+        download_blob(args.bucket_name, args.data_yaml_gcs_path, VERTEX_AI_DATASET_PATH)
+        data_path = VERTEX_AI_DATASET_PATH
+    else:
+        data_path = args.data_yaml_local_path  # ローカル実行時はローカルパス
+
+
     # セグメンテーションモデルを初期化
     if not args.model.endswith("-seg.pt"):
         base_name = args.model.replace(".pt", "")
@@ -52,7 +53,7 @@ def train_yolov8(args):
 
     # トレーニングを実行
     results = model.train(
-        data=LOCAL_DATASET_PATH,
+        data=data_path,  # data.yaml のパスを使用
         epochs=args.epochs,
         batch=args.batch_size,
         imgsz=args.imgsz,
@@ -66,11 +67,13 @@ def train_yolov8(args):
         mosaic=args.mosaic,  # モザイクデータ拡張
         degrees=args.degrees,  # 回転のデータ拡張
         scale=args.scale,  # スケーリングのデータ拡張
+        exist_ok=True # runs/train/exp(n)が存在していても上書き
     )
 
+
     # 学習済みモデルを保存 (ローカル)
-    best_model_path = os.path.join(results.save_dir, "weights", "best.pt")
-    print(f"ローカルでのテストのため、モデルは{best_model_path}に保存されました")
+    best_model_path = os.path.join(model.trainer.save_dir, "weights", "best.pt")
+    print(f"モデルは{best_model_path}に保存されました")
 
     # 学習済みモデルをCloud Storageにアップロード
     if args.upload_bucket:  # --upload_bucket 引数が指定された場合のみアップロード
@@ -79,6 +82,7 @@ def train_yolov8(args):
             best_model_path,
             os.path.join(args.upload_dir, "best.pt"),  # Cloud Storage上のパス
         )
+
 
 
 if __name__ == "__main__":
@@ -129,6 +133,22 @@ if __name__ == "__main__":
         default="trained_models",
         help="Directory in the GCS bucket to upload the model to",
     )
+
+    # data.yaml の GCS パス (Vertex AI 環境で必要)
+    parser.add_argument(
+        "--bucket_name",
+        type=str,
+        help="GCS bucket name where data.yaml is stored",
+    )
+    parser.add_argument(
+        "--data_yaml_gcs_path",
+        type=str,
+        help="Path to data.yaml in GCS bucket",
+    )
+     # data.yaml のローカルパス (ローカル環境での実行時に使用)
+    parser.add_argument('--data_yaml_local_path', type=str, default= "data.yaml",
+                        help='Path to the local data.yaml file')
+
 
     args = parser.parse_args()
 
