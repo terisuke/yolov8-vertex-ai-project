@@ -3,6 +3,7 @@ import os
 import yaml
 from google.cloud import storage
 from ultralytics import YOLO
+import glob  # 追加
 
 def download_dataset(bucket_name, source_prefix, destination_dir):
     """Downloads dataset from Cloud Storage, maintaining directory structure and skipping unwanted files."""
@@ -44,6 +45,20 @@ def upload_model(bucket_name, model_path, destination_blob_name):
     blob.upload_from_filename(model_path)
     print(f"File {model_path} uploaded to gs://{bucket_name}/{destination_blob_name}")
 
+def upload_directory(bucket_name, source_directory, destination_blob_prefix):
+    """Uploads an entire directory to Cloud Storage."""
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    for local_file in glob.glob(source_directory + '/**'):  # 再帰的にファイルを検索
+        if os.path.isfile(local_file):
+            # GCS 内での相対パスを計算
+            relative_path = os.path.relpath(local_file, source_directory)
+            blob_name = os.path.join(destination_blob_prefix, relative_path)
+
+            blob = bucket.blob(blob_name)
+            blob.upload_from_filename(local_file)
+            print(f"File {local_file} uploaded to gs://{bucket_name}/{blob_name}")
 
 def train_yolov8(args):
     """Trains a YOLOv8 segmentation model."""
@@ -71,7 +86,7 @@ def train_yolov8(args):
         download_dataset(args.bucket_name, "house/val/images", os.path.join(val_dir, "images"))
         download_dataset(args.bucket_name, "house/val/labels", os.path.join(val_dir, "labels"))
 
-         # Check downloaded contents (for debugging - can be removed in production)
+        # Check downloaded contents (for debugging - can be removed in production)
         print("Training directory structure:")
         print(f"Images: {os.listdir(os.path.join(train_dir, 'images'))}")
         print(f"Labels: {os.listdir(os.path.join(train_dir, 'labels'))}")
@@ -79,7 +94,6 @@ def train_yolov8(args):
         print("\nValidation directory structure:")
         print(f"Images: {os.listdir(os.path.join(val_dir, 'images'))}")
         print(f"Labels: {os.listdir(os.path.join(val_dir, 'labels'))}")
-
 
         data_path = "/app/data.yaml"
 
@@ -90,8 +104,6 @@ def train_yolov8(args):
         # Set paths as expected by YOLOv8
         data_config["train"] = train_dir
         data_config["val"] = val_dir
-        # data_config['path'] = '/app/datasets/house'  # Optional: Set a base path if needed
-
 
         with open(data_path, "w") as f:
             yaml.dump(data_config, f)
@@ -106,7 +118,6 @@ def train_yolov8(args):
 
             with open(data_path, 'w') as f:
                 yaml.dump(data_config, f)
-
 
     # Initialize the segmentation model
     if not args.model.endswith("-seg.pt"):
@@ -131,19 +142,22 @@ def train_yolov8(args):
         mosaic=args.mosaic,
         degrees=args.degrees,
         scale=args.scale,
-        exist_ok=True  # Allow overwriting previous runs
+        exist_ok=True,  # Allow overwriting previous runs
+        save_dir=args.save_dir  # 追加：保存先ディレクトリの指定
     )
 
-
-    # Save the trained model (local)
-    best_model_path = os.path.join(model.trainer.save_dir, "weights", "best.pt")
-    print(f"Model saved to {best_model_path}")
-
-    # Upload the trained model to Cloud Storage
+    # Upload the entire save_dir to Cloud Storage
     if args.upload_bucket:
+        # upload_directoryを呼び出す
+        upload_directory(
+            args.upload_bucket,
+            args.save_dir,  # ローカルの保存先ディレクトリ
+            args.save_dir.replace("gs://", "").split("/", 1)[1]  # GCS のプレフィックス (バケット名を除く)
+        )
+        # trained_model/best.ptをアップロード
         upload_model(
             args.upload_bucket,
-            best_model_path,
+            os.path.join(model.trainer.save_dir, "weights", "best.pt"),
             os.path.join(args.upload_dir, "best.pt"),
         )
 
@@ -152,7 +166,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train YOLOv8-seg on Vertex AI")
 
     # Basic parameters
-    parser.add_argument("--model", type=str, default="yolov8n-seg.pt", help="Base YOLOv8 model (e.g., yolov8n-seg.pt, yolov8s-seg.pt)")
+    parser.add_argument("--model", type=str, default="yolo11m-seg.pt", help="Base YOLOv8 model (e.g., yolov8n-seg.pt, yolov8s-seg.pt)")
     parser.add_argument("--epochs", type=int, default=100, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
     parser.add_argument("--imgsz", type=int, default=640, help="Input image size")
@@ -174,16 +188,15 @@ if __name__ == "__main__":
     # Cloud Storage related parameters
     parser.add_argument("--upload_bucket", type=str, help="GCS bucket to upload the trained model to")
     parser.add_argument("--upload_dir", type=str, default="trained_models", help="Directory in the bucket to upload to")
+    parser.add_argument("--save_dir", type=str, help="Directory to save training results")  # 追加
 
     # data.yaml GCS path (required in Vertex AI environment)
-    parser.add_argument("--bucket_name", type=str, help="GCS bucket name for dataset (required on Vertex AI)")  # Required for Vertex AI
-    parser.add_argument("--data_yaml_gcs_path", type=str, help="GCS path to data.yaml (required on Vertex AI)") # Vertex AIなら必須
+    parser.add_argument("--bucket_name", type=str, help="GCS bucket name for dataset (required on Vertex AI)")
 
-     # data.yaml and train/val local paths (used for local execution)
-    parser.add_argument('--data_yaml_local_path', type=str, default= "data.yaml", help="Local path to data.yaml")
-    parser.add_argument('--train_dir', type=str, default= "datasets/house/train", help='Local path to the training data directory') # ローカル用
-    parser.add_argument('--val_dir', type=str, default= "datasets/house/val", help='Local path to the validation data directory') # ローカル用
-
+    # data.yaml and train/val local paths (used for local execution)
+    parser.add_argument('--data_yaml_local_path', type=str, default="data.yaml", help="Local path to data.yaml")
+    parser.add_argument('--train_dir', type=str, default="datasets/house/train", help='Local path to the training data directory')
+    parser.add_argument('--val_dir', type=str, default="datasets/house/val", help='Local path to the validation data directory')
 
     args = parser.parse_args()
 
