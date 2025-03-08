@@ -1,13 +1,14 @@
 # train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+# Vertex AI用パス (コメントアウト)
 train: /app/datasets/house/train
 val: /app/datasets/house/val
 
-# ローカルでのディレクトリパス  (ローカル実行時に app.py でこの部分が書き換えられます)
-# train: datasets/house/train/
-# val: datasets/house/val/
+# ローカルでのディレクトリパス
+# train: datasets/house/train
+# val: datasets/house/val
 
 # number of classes
 nc: 4
 
 # class names
-names: ['House', 'Direction','Road', 'Space']
+names: ['Direction', 'House', 'Road', 'Space']

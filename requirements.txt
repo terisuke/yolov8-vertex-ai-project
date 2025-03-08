@@ -1,3 +1,8 @@
+# Start of Selection
 ultralytics
 google-cloud-storage # ローカルテスト時はコメントアウト
 PyYAML
+opencv-python
+matplotlib
+numpy
+# End of Selection

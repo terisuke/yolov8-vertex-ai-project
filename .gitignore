@@ -54,6 +54,10 @@ Thumbs.db
 !data.yaml
 !requirements.yaml
 move_and_split.sh
+# @visualuzation_results以下のファイルを無視する
+visualization_results/
+
+
 
 # サービスアカウントキー
 service-account-key.json
